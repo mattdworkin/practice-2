@@ -15,17 +15,9 @@ export default function ProtectedLayout({
       <div className="flex min-h-screen flex-col items-center">
         <nav className="w-full border-b border-border/60 bg-background/80 backdrop-blur">
           <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 text-sm">
-            <div className="flex items-center gap-6">
-              <Link href="/" className="font-semibold tracking-tight">
-                Meeting Insight Generator
-              </Link>
-              <Link
-                href="/protected"
-                className="hidden text-muted-foreground transition hover:text-foreground sm:inline-flex"
-              >
-                Workspace
-              </Link>
-            </div>
+            <Link href="/" className="font-semibold tracking-tight">
+              Meeting Insight Generator
+            </Link>
             <div className="flex items-center gap-3">
               <ThemeSwitcher />
               {!hasEnvVars ? (
@@ -44,13 +36,6 @@ export default function ProtectedLayout({
             {children}
           </div>
         </div>
-
-        <footer className="w-full border-t border-border/60 bg-background/80">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-6 text-xs text-muted-foreground">
-            <p>Built with Next.js, Supabase auth, and a server-side LLM call.</p>
-            <p>Private meeting history stays scoped to the signed-in user.</p>
-          </div>
-        </footer>
       </div>
     </main>
   );

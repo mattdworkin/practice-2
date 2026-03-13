@@ -12,8 +12,10 @@ export async function AuthButton() {
   const user = data?.claims;
 
   return user ? (
-    <div className="flex items-center gap-4">
-      Hey, {user.email}!
+    <div className="flex items-center gap-3">
+      <span className="hidden max-w-52 truncate text-muted-foreground sm:inline">
+        {user.email}
+      </span>
       <LogoutButton />
     </div>
   ) : (

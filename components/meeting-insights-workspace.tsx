@@ -218,26 +218,17 @@ export function MeetingInsightsWorkspace({
   return (
     <div className="flex w-full flex-col gap-8">
       <section className="rounded-3xl border border-border/60 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-800 p-8 text-slate-50 shadow-xl shadow-slate-950/10">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-2xl space-y-3">
-            <Badge className="w-fit border-slate-700 bg-slate-900/70 text-slate-200 hover:bg-slate-900/70">
-              AI Meeting Insight Generator
-            </Badge>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Turn raw meeting notes into a summary, key points, and clear next
-              steps.
-            </h1>
-            <p className="text-sm leading-6 text-slate-300 sm:text-base">
-              Paste a transcript or rough notes, generate structured insights,
-              and keep every analysis tied to your account for quick follow-up.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 rounded-2xl border border-slate-700/80 bg-slate-900/60 px-4 py-3 text-sm text-slate-200">
-            <span className="font-medium text-slate-50">Signed in</span>
-            <span className="truncate text-slate-300">
-              {userEmail ?? "Authenticated user"}
-            </span>
-          </div>
+        <div className="max-w-3xl space-y-3">
+          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+            Turn meeting notes into a clear summary and action plan.
+          </h1>
+          <p className="text-sm leading-6 text-slate-300 sm:text-base">
+            Paste a transcript or rough notes, generate structured insights,
+            and keep every analysis in one place.
+          </p>
+          {userEmail ? (
+            <p className="text-sm text-slate-400">{userEmail}</p>
+          ) : null}
         </div>
       </section>
 
