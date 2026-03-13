@@ -1,7 +1,14 @@
 "use client";
 
 import { startTransition, useState } from "react";
-import { AlertCircle, CheckCircle2, Clock3, Sparkles } from "lucide-react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Clock3,
+  FileText,
+  History,
+  Sparkles,
+} from "lucide-react";
 
 import {
   MAX_MEETING_NOTES_LENGTH,
@@ -33,10 +40,36 @@ interface MeetingInsightsWorkspaceProps {
   userEmail: string | null;
 }
 
+const SAMPLE_MEETING_NOTES = `Product sync with Maya, Jordan, and Priya.
+
+- We agreed to ship the meeting insight generator demo on Friday.
+- Jordan finished Supabase auth and confirmed sign-in/sign-out is stable.
+- Priya asked for a cleaner loading state and more polished empty states before the interview.
+- We decided to keep the current architecture and avoid adding new dependencies.
+- Action: Maya will tighten the prompt and error handling today.
+- Action: Priya will polish the history list and result layout by Thursday afternoon.
+- Risk: We still need to verify the Vercel env vars before the final demo.
+
+Overall tone was positive and focused, with some urgency around final QA.`;
+
 function formatCreatedAt(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function formatHistoryDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+  }).format(new Date(value));
+}
+
+function formatHistoryTime(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
@@ -46,6 +79,49 @@ function truncate(value: string, maxLength: number) {
   }
 
   return `${value.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getValidationMessage(notes: string) {
+  if (!notes.trim()) {
+    return "Add meeting notes to continue.";
+  }
+
+  if (notes.length > MAX_MEETING_NOTES_LENGTH) {
+    return `Keep meeting notes under ${MAX_MEETING_NOTES_LENGTH.toLocaleString()} characters.`;
+  }
+
+  return null;
+}
+
+function getErrorMessage(error: string | null) {
+  if (!error) {
+    return null;
+  }
+
+  if (
+    error.includes("OPENAI_API_KEY") ||
+    error.includes("not configured on the server")
+  ) {
+    return "AI generation is not configured right now.";
+  }
+
+  if (error.includes("table is missing")) {
+    return "History storage is not ready yet.";
+  }
+
+  if (
+    error.includes("invalid JSON") ||
+    error.includes("expected schema") ||
+    error.includes("no structured output")
+  ) {
+    return "The model returned an incomplete result. Please try again.";
+  }
+
+  if (error.includes("network")) {
+    return "Network issue. Please try again.";
+  }
+
+  return "We couldn’t generate insights right now. Please try again.";
 }
 
 function sentimentStyles(sentiment: MeetingAnalysis["sentiment"]) {
@@ -72,6 +148,8 @@ export function MeetingInsightsWorkspace({
   const [notes, setNotes] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const validationMessage = getValidationMessage(notes);
+  const displayError = getErrorMessage(submitError);
 
   const selectedAnalysis =
     analyses.find((analysis) => analysis.id === selectedAnalysisId) ??
@@ -81,10 +159,15 @@ export function MeetingInsightsWorkspace({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const trimmedNotes = notes.trim();
+    if (isSubmitting) {
+      return;
+    }
 
-    if (!trimmedNotes) {
-      setSubmitError("Paste meeting notes before generating insights.");
+    const trimmedNotes = notes.trim();
+    const nextValidationMessage = getValidationMessage(notes);
+
+    if (nextValidationMessage) {
+      setSubmitError(nextValidationMessage);
       return;
     }
 
@@ -167,23 +250,21 @@ export function MeetingInsightsWorkspace({
                 <CardTitle>Generate insights</CardTitle>
               </div>
               <CardDescription>
-                Use a single polished flow: paste notes, generate insights, and
-                save the result automatically.
+                Paste notes, generate a polished analysis, and save it to your
+                private history automatically.
               </CardDescription>
               {!isLlmConfigured ? (
                 <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>
-                    `OPENAI_API_KEY` is not configured yet. The rest of the app
-                    is ready, but generation is disabled until that env var is
-                    set.
+                    AI generation is unavailable until `OPENAI_API_KEY` is set.
                   </span>
                 </div>
               ) : null}
             </CardHeader>
             <CardContent>
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                <div className="space-y-2">
+              <form className="space-y-5" onSubmit={handleSubmit}>
+                <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
                     <label
                       className="font-medium text-foreground"
@@ -199,35 +280,77 @@ export function MeetingInsightsWorkspace({
                   <textarea
                     id="meeting-notes"
                     value={notes}
-                    onChange={(event) => setNotes(event.target.value)}
-                    placeholder="Paste meeting notes here. Include decisions, blockers, owners, and next steps if available."
-                    className="min-h-64 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm leading-6 shadow-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    onChange={(event) => {
+                      setNotes(event.target.value);
+                      if (submitError) {
+                        setSubmitError(null);
+                      }
+                    }}
+                    placeholder="Paste a transcript, summary notes, or bullet-point recap. Include decisions, blockers, owners, and deadlines if you have them."
+                    className="min-h-72 w-full rounded-xl border border-input bg-background px-4 py-3 text-sm leading-6 shadow-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
                     maxLength={MAX_MEETING_NOTES_LENGTH}
+                    aria-invalid={Boolean(displayError)}
                   />
+                  <div className="flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <p>
+                      Tip: raw notes are fine. The app will summarize, extract
+                      key points, and capture follow-up actions.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setNotes(SAMPLE_MEETING_NOTES);
+                          setSubmitError(null);
+                        }}
+                        disabled={isSubmitting}
+                      >
+                        Use sample notes
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNotes("");
+                          setSubmitError(null);
+                        }}
+                        disabled={isSubmitting || notes.length === 0}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
-                {submitError ? (
+                {displayError ? (
                   <div className="flex items-start gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive">
                     <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>{submitError}</span>
+                    <span>{displayError}</span>
                   </div>
-                ) : null}
-
-                {isSubmitting ? (
+                ) : validationMessage && !isSubmitting ? (
+                  <div className="rounded-lg border border-border/70 bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                    {validationMessage}
+                  </div>
+                ) : isSubmitting ? (
                   <div className="flex items-start gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
                     <Clock3 className="mt-0.5 h-4 w-4 shrink-0 animate-pulse" />
-                    <span>Generating insights and saving the analysis...</span>
+                    <span>Generating insights and saving to history...</span>
                   </div>
                 ) : null}
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Notes are analyzed server-side and saved to your private
-                    history.
+                    Analysis runs server-side and is saved to your account.
                   </p>
                   <Button
                     type="submit"
-                    disabled={isSubmitting || !notes.trim() || !isLlmConfigured}
+                    disabled={
+                      isSubmitting || Boolean(validationMessage) || !isLlmConfigured
+                    }
+                    aria-busy={isSubmitting}
                   >
                     {isSubmitting ? "Generating..." : "Generate Insights"}
                   </Button>
@@ -240,22 +363,22 @@ export function MeetingInsightsWorkspace({
             <CardHeader className="space-y-2">
               <CardTitle className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
-                Analysis details
+                Insight details
               </CardTitle>
               <CardDescription>
-                Review the latest output or reopen any previous analysis from
-                the history panel.
+                Review the latest result or open any saved analysis from the
+                history panel.
               </CardDescription>
             </CardHeader>
             <CardContent>
               {selectedAnalysis ? (
-                <div className="space-y-6">
+                <div className="space-y-5">
                   <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="space-y-1">
-                      <p className="text-sm font-medium text-foreground">
-                        Saved analysis
+                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                        Saved Analysis
                       </p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm font-medium text-foreground">
                         {formatCreatedAt(selectedAnalysis.created_at)}
                       </p>
                     </div>
@@ -267,17 +390,17 @@ export function MeetingInsightsWorkspace({
                     </Badge>
                   </div>
 
-                  <div className="space-y-2">
+                  <section className="space-y-2 rounded-2xl border border-border/70 bg-background p-5">
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                       Summary
                     </h2>
                     <p className="text-sm leading-6 text-foreground">
                       {selectedAnalysis.summary}
                     </p>
-                  </div>
+                  </section>
 
                   <div className="grid gap-6 lg:grid-cols-2">
-                    <div className="space-y-3">
+                    <section className="space-y-3 rounded-2xl border border-border/70 bg-background p-5">
                       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                         Key points
                       </h2>
@@ -291,9 +414,9 @@ export function MeetingInsightsWorkspace({
                           </li>
                         ))}
                       </ul>
-                    </div>
+                    </section>
 
-                    <div className="space-y-3">
+                    <section className="space-y-3 rounded-2xl border border-border/70 bg-background p-5">
                       <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                         Action items
                       </h2>
@@ -307,10 +430,10 @@ export function MeetingInsightsWorkspace({
                           </li>
                         ))}
                       </ul>
-                    </div>
+                    </section>
                   </div>
 
-                  <div className="space-y-3">
+                  <section className="space-y-3 rounded-2xl border border-border/70 bg-background p-5">
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                       Original notes
                     </h2>
@@ -319,12 +442,18 @@ export function MeetingInsightsWorkspace({
                         {selectedAnalysis.original_notes}
                       </pre>
                     </div>
-                  </div>
+                  </section>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center text-sm text-muted-foreground">
-                  No analyses yet. Paste meeting notes above to generate your
-                  first saved insight set.
+                <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-6 py-12 text-center">
+                  <FileText className="mx-auto h-9 w-9 text-muted-foreground" />
+                  <h2 className="mt-4 text-sm font-medium text-foreground">
+                    Your next analysis will appear here
+                  </h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Paste meeting notes and generate insights to populate this
+                    view.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -333,9 +462,12 @@ export function MeetingInsightsWorkspace({
 
         <Card className="h-fit border-border/70">
           <CardHeader className="space-y-2">
-            <CardTitle>History</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              History
+            </CardTitle>
             <CardDescription>
-              Your saved analyses appear here in reverse chronological order.
+              Saved analyses appear here in reverse chronological order.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -346,8 +478,14 @@ export function MeetingInsightsWorkspace({
             ) : null}
 
             {analyses.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-8 text-center text-sm text-muted-foreground">
-                Nothing saved yet.
+              <div className="rounded-2xl border border-dashed border-border bg-muted/20 px-4 py-10 text-center">
+                <History className="mx-auto h-8 w-8 text-muted-foreground" />
+                <h2 className="mt-4 text-sm font-medium text-foreground">
+                  No saved analyses yet
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Generate your first meeting insight to start building history.
+                </p>
               </div>
             ) : (
               analyses.map((analysis) => {
@@ -358,7 +496,7 @@ export function MeetingInsightsWorkspace({
                     key={analysis.id}
                     type="button"
                     className={cn(
-                      "w-full rounded-2xl border px-4 py-4 text-left transition",
+                      "w-full rounded-2xl border px-4 py-4 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       isSelected
                         ? "border-primary bg-primary/5 shadow-sm"
                         : "border-border/70 bg-background hover:border-primary/40 hover:bg-muted/30",
@@ -367,11 +505,16 @@ export function MeetingInsightsWorkspace({
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          <span>{formatHistoryDate(analysis.created_at)}</span>
+                          <span className="text-border">•</span>
+                          <span>{formatHistoryTime(analysis.created_at)}</span>
+                        </div>
                         <p className="text-sm font-medium text-foreground">
-                          {truncate(analysis.summary, 96)}
+                          {truncate(analysis.summary, 88)}
                         </p>
-                        <p className="text-xs leading-5 text-muted-foreground">
-                          {truncate(analysis.original_notes, 110)}
+                        <p className="text-sm leading-6 text-muted-foreground">
+                          {truncate(analysis.original_notes.replace(/\s+/g, " "), 120)}
                         </p>
                       </div>
                       <Badge
@@ -384,9 +527,6 @@ export function MeetingInsightsWorkspace({
                         {analysis.sentiment}
                       </Badge>
                     </div>
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      {formatCreatedAt(analysis.created_at)}
-                    </p>
                   </button>
                 );
               })
