@@ -1,4 +1,3 @@
-import { DeployButton } from "@/components/deploy-button";
 import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -12,42 +11,45 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
-              <Link href={"/"}>Next.js Supabase Starter</Link>
-              <div className="flex items-center gap-2">
-                <DeployButton />
-              </div>
+    <main className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20">
+      <div className="flex min-h-screen flex-col items-center">
+        <nav className="w-full border-b border-border/60 bg-background/80 backdrop-blur">
+          <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 text-sm">
+            <div className="flex items-center gap-6">
+              <Link href="/" className="font-semibold tracking-tight">
+                Meeting Insight Generator
+              </Link>
+              <Link
+                href="/protected"
+                className="hidden text-muted-foreground transition hover:text-foreground sm:inline-flex"
+              >
+                Workspace
+              </Link>
             </div>
-            {!hasEnvVars ? (
-              <EnvVarWarning />
-            ) : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
+            <div className="flex items-center gap-3">
+              <ThemeSwitcher />
+              {!hasEnvVars ? (
+                <EnvVarWarning />
+              ) : (
+                <Suspense>
+                  <AuthButton />
+                </Suspense>
+              )}
+            </div>
           </div>
         </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          {children}
+
+        <div className="flex w-full flex-1 justify-center">
+          <div className="flex w-full max-w-6xl flex-1 flex-col px-5 py-10">
+            {children}
+          </div>
         </div>
 
-        <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
-          <p>
-            Powered by{" "}
-            <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-              target="_blank"
-              className="font-bold hover:underline"
-              rel="noreferrer"
-            >
-              Supabase
-            </a>
-          </p>
-          <ThemeSwitcher />
+        <footer className="w-full border-t border-border/60 bg-background/80">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-5 py-6 text-xs text-muted-foreground">
+            <p>Built with Next.js, Supabase auth, and a server-side LLM call.</p>
+            <p>Private meeting history stays scoped to the signed-in user.</p>
+          </div>
         </footer>
       </div>
     </main>
